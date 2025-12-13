@@ -629,9 +629,10 @@ def test_versions(capsys):
 def test_attr_complete():
     # Test that q and K have all expected attributes
     all_names = q('distinct .Q.res,1_key`.q')
-    not_expected = {'if', 'do', 'while', 'from', 'delete', 'exit'}
+    not_expected = {'if', 'do', 'while', 'from', 'exit', 'by'}
     if not _PY3K:
         not_expected.add('exec')
+        not_expected.add('delete')
     for name in all_names:
         if name not in not_expected:
             if iskeyword(name):

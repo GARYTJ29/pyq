@@ -49,7 +49,9 @@ static char __version__[] = "$Revision: 10002$";
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
 #include "datetime.h"
-#include "longintrepr.h"
+#if PY_VERSION_HEX < 0x030B0000
+    #include "longintrepr.h"
+#endif
 
 #include "kx/k.h"
 
@@ -2494,11 +2496,24 @@ py2uu(PyObject *obj, U *uu)
     if (int_obj == NULL)
         return -1;
     /* XXX: Add int/long handling in Python 2.x case. */
+    #if PY_VERSION_HEX < 0x030D0000
+    /* Python <= 3.12: 5-argument version */
     if (_PyLong_AsByteArray((PyLongObject *)int_obj,
                             uu->g,
                             16, /* size */
                             0,  /* little_endian */
-                            0 /* is_signed */) == -1)
+                            0   /* is_signed */
+                           ) == -1)
+    #else
+        /* Python >= 3.13: 6-argument version */
+        if (_PyLong_AsByteArray((PyLongObject *)int_obj,
+                                uu->g,
+                                16,
+                                0,  /* little_endian */
+                                0,  /* is_signed */
+                                0   /* with_exceptions */
+                            ) == -1)
+    #endif
         ret = -1;
     Py_DECREF(int_obj);
     return ret;

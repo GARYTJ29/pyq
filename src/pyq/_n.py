@@ -143,7 +143,7 @@ def k2a(a, x):
             a[n] = None
 
 
-def array(self, dtype=None):
+def array(self, dtype=None, **kwargs):
     """An implementation of __array__()"""
     t = self._t
     # timestamp (12) through last enum (76)

@@ -1,11 +1,17 @@
 """pyq - python for kdb+"""
 import itertools
 from datetime import datetime, date, time
-from collections import Mapping as _Mapping
+from collections.abc import Mapping as _Mapping
 
 import builtins
 import sys
 import os
+
+from pathlib import Path
+try:
+    import py
+except ImportError:
+    py = None
 
 try:
     import numpy as _np
@@ -760,6 +766,10 @@ def _tupletok(x):
         return K._from_sequence(x)
     else:
         return K._xD(K(fields), K._from_sequence(x))
+    
+def _pytest_path_to_k(p):
+    p = Path(p.strpath)
+    return K(p)
 
 
 kp = K._kp
@@ -775,6 +785,8 @@ converters = {
     bytearray: K._from_memoryview,
     memoryview: K._from_memoryview,
 }
+if py is not None:
+    converters[py._path.local.LocalPath] = _pytest_path_to_k
 
 
 ###############################################################################
