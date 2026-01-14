@@ -49,9 +49,6 @@ static char __version__[] = "$Revision: 10002$";
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
 #include "datetime.h"
-#if PY_VERSION_HEX < 0x030B0000
-    #include "longintrepr.h"
-#endif
 
 #include "kx/k.h"
 
@@ -2495,26 +2492,38 @@ py2uu(PyObject *obj, U *uu)
     Py_DECREF(obj);
     if (int_obj == NULL)
         return -1;
-    /* XXX: Add int/long handling in Python 2.x case. */
-    #if PY_VERSION_HEX < 0x030D0000
-    /* Python <= 3.12: 5-argument version */
-    if (_PyLong_AsByteArray((PyLongObject *)int_obj,
-                            uu->g,
-                            16, /* size */
-                            0,  /* little_endian */
-                            0   /* is_signed */
-                           ) == -1)
-    #else
-        /* Python >= 3.13: 6-argument version */
-        if (_PyLong_AsByteArray((PyLongObject *)int_obj,
-                                uu->g,
-                                16,
-                                0,  /* little_endian */
-                                0,  /* is_signed */
-                                0   /* with_exceptions */
-                            ) == -1)
-    #endif
-        ret = -1;
+    /* Avoid private API signature changes; use Python-level to_bytes. */
+    PyObject *bytes_obj = PyObject_CallMethod(int_obj, "to_bytes", "isO", 16, "little", Py_False);
+    if (bytes_obj == NULL) {
+        Py_DECREF(int_obj);
+        return -1;
+    }
+
+    if (!PyBytes_Check(bytes_obj)) {
+        PyErr_SetString(PyExc_TypeError, "int.to_bytes did not return bytes");
+        Py_DECREF(bytes_obj);
+        Py_DECREF(int_obj);
+        return -1;
+    }
+
+    char *buf = NULL;
+    Py_ssize_t n = 0;
+    if (PyBytes_AsStringAndSize(bytes_obj, &buf, &n) == -1) {
+        Py_DECREF(bytes_obj);
+        Py_DECREF(int_obj);
+        return -1;
+    }
+
+    if (n != 16) {
+        PyErr_Format(PyExc_ValueError, "to_bytes returned %zd bytes, expected 16", n);
+        Py_DECREF(bytes_obj);
+        Py_DECREF(int_obj);
+        return -1;
+    }
+
+    memcpy(uu->g, buf, 16);
+
+    Py_DECREF(bytes_obj);
     Py_DECREF(int_obj);
     return ret;
 }
