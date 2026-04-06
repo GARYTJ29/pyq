@@ -400,10 +400,16 @@ class BuildQExt(Command):
             sources = ext.sources
             ext_path = os.path.join(self.build_lib,
                                     ext.name + ('.dll' if WINDOWS else '.so'))
-            compiler = new_compiler(compiler=self.compiler,
-                                    verbose=self.verbose,
-                                    dry_run=self.dry_run,
-                                    force=self.force)
+            compiler_kwargs = dict(compiler=self.compiler,
+                                   verbose=self.verbose,
+                                   force=self.force)
+            if self.dry_run is not None:
+                compiler_kwargs['dry_run'] = self.dry_run
+            try:
+                compiler = new_compiler(**compiler_kwargs)
+            except TypeError:
+                compiler_kwargs.pop('dry_run', None)
+                compiler = new_compiler(**compiler_kwargs)
             customize_compiler(compiler)
             if WINDOWS:
                 compiler.initialize()
@@ -493,11 +499,17 @@ class BuildExe(Command):
         from distutils.sysconfig import customize_compiler
 
         for exe in self.distribution.executables:
-            compiler = new_compiler(
+            compiler_kwargs = dict(
                 compiler=self.compiler,
                 verbose=self.verbose,
-                dry_run=self.dry_run,
                 force=self.force)
+            if self.dry_run is not None:
+                compiler_kwargs['dry_run'] = self.dry_run
+            try:
+                compiler = new_compiler(**compiler_kwargs)
+            except TypeError:
+                compiler_kwargs.pop('dry_run', None)
+                compiler = new_compiler(**compiler_kwargs)
             customize_compiler(compiler)
             extra_args = exe.extra_compile_args or []
             objects = compiler.compile(exe.sources,

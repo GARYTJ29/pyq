@@ -25,14 +25,21 @@ except ImportError:
     import platform
 
     if not hasattr(ctypes.CDLL(None), 'b9'):
-        message = ("Importing the pyq package from "
-                   "standalone python is not supported. ")
-        if platform.system() == 'Windows':
-            message += "Run path\\to\\q.exe python.q."
-        else:
-            message += "Use pyq executable."
-        raise ImportError(message)
-    raise
+        # Allow standalone imports when pykx has already loaded kdb+ symbols.
+        try:
+            import pykx  # noqa: F401
+            from ._k import K as _K, error as kerr, Q_VERSION, Q_DATE, Q_OS
+        except ImportError:
+            message = ("Importing the pyq package from "
+                       "standalone python is not supported. ")
+            if platform.system() == 'Windows':
+                message += "Run path\\to\\q.exe python.q. "
+            else:
+                message += "Use pyq executable. "
+            message += "Alternative: install pykx and import pykx before pyq."
+            raise ImportError(message)
+    else:
+        raise
 
 try:
     from .version import version as __version__
@@ -785,7 +792,7 @@ converters = {
     bytearray: K._from_memoryview,
     memoryview: K._from_memoryview,
 }
-if py is not None:
+if py is not None and hasattr(py, '_path') and hasattr(py._path, 'local'):
     converters[py._path.local.LocalPath] = _pytest_path_to_k
 
 
